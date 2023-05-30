@@ -7,13 +7,18 @@ namespace SvTracker
     {
         static void Main(string[] args)
         {
-            string filename = "C:\\Users\\metca\\source\\repos\\SvTracker\\SvTracker\\sampleAlm.alm";
+            string filename = "C:\\Users\\metca\\source\\repos\\GPSTracking\\SvTracker\\sampleAlm.alm";
             int elevationMaskAngle = 5;
-            GeodeticCoordinate receiverCoords = new GeodeticCoordinate(latitude: 34, 118, 0);
+            var watch = new System.Diagnostics.Stopwatch();
+            watch.Start();
 
-            Constellation constellation = new Constellation(DateTime.UtcNow, filename);
-            constellation.ComputeVisibility(receiverCoords, elevationMaskAngle);
+            GeodeticCoordinate receiverCoords = new GeodeticCoordinate(latitude: 33, -118, 0);
+
+            Constellation constellation = new Constellation(receiverCoords, elevationMaskAngle, DateTime.UtcNow, filename);
+            constellation.ComputeRiseSetTimes(DateTime.UtcNow.AddDays(-1), DateTime.UtcNow.AddDays(1), receiverCoords);
             constellation.PrintConstellationInfo();
+            watch.Stop();
+            Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds} ms");
 
             //DebugTest(constellation);
         }

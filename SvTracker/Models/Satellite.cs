@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace SvTracker.Models
 {
@@ -35,6 +36,7 @@ namespace SvTracker.Models
             Af0 = af0_s;
             Af1 = af1_s;
             Week = week;
+            this.RiseSetTimes = new List<RiseSetTime>();
         }
 
         private int Health { get; set; }
@@ -48,13 +50,14 @@ namespace SvTracker.Models
         private double M0 { get; set; }
         private double Af0 { get; set; }
         private double Af1 { get; set; }
+        public List<RiseSetTime> RiseSetTimes { get; set; }
+
         private int Week { get; set; }
         public ECEFCoordinate EcefCoord { get; set; } = new ECEFCoordinate(0,0,0);
-        public GeodeticCoordinate GeoCoord { get; set; }
         public double ElevationAngle { get; set; }
         public bool IsVisible { get; set; }
 
-        public void ComputeCoordinates(DateTime referenceTime, AppConfig appConfig, int prn)
+        public ECEFCoordinate ComputeCoordinates(DateTime referenceTime, AppConfig appConfig)
         {
             GPSTime time = new GPSTime(referenceTime, appConfig);
 
@@ -64,6 +67,7 @@ namespace SvTracker.Models
 
             // Time from Epoch
             double timeFromEpoch = 604800 * dw + time.GPSSecondOfWeek - this.t0;
+            //double timeFromEpoch = -165554;
 
             // Semi-Major Axis
             double A = this.sqrtA * this.sqrtA;
@@ -106,11 +110,7 @@ namespace SvTracker.Models
             double yk = xkp * Math.Sin(OMEGAk) + ykp * Math.Cos(this.i) * Math.Cos(OMEGAk);
             double zk = ykp * Math.Sin(i);
 
-            // Could do this for readability but much slower
-            //this.EcefCoord = new ECEFCoordinate(xk, yk, zk);
-            this.EcefCoord.SetEcefCoord(xk, yk, zk);
-
-            this.GeoCoord = this.EcefCoord.ECEFToGeodetic();
+            return new ECEFCoordinate(xk, yk, zk);
         }
 
         // Newton Method for eccentricity anomaly
@@ -119,34 +119,68 @@ namespace SvTracker.Models
             return E - ((E - e * (Math.Sin(E)) - Mk) / (1 - e * (Math.Cos(E))));
         }
 
-        public void CalculateVisibility(ECEFCoordinate refCoord, double elevationMaskAngle)
+        public bool CalculateVisibility(ECEFCoordinate refCoord, ECEFCoordinate svCoord, double elevationMaskAngle=5)
         {
-            this.ElevationAngle = CalculateAngleBetween2Points(refCoord, this.EcefCoord);
+            double elevationAngle = CalculateAngleBetween2Points(refCoord, svCoord);
+            return elevationAngle >= elevationMaskAngle;
+        }
+
+        public void SetVisibilityAndAngle(ECEFCoordinate refCoord, ECEFCoordinate svCoord, double elevationMaskAngle = 5)
+        {
+            this.ElevationAngle = CalculateAngleBetween2Points(refCoord, svCoord);
             this.IsVisible = this.ElevationAngle >= elevationMaskAngle;
         }
 
         private double CalculateAngleBetween2Points(ECEFCoordinate refCoord, ECEFCoordinate satGeoCoord)
         {
             //Cos(elevation) = (x * dx + y * dy + z * dz) / Sqrt((x ^ 2 + y ^ 2 + z ^ 2) * (dx ^ 2 + dy ^ 2 + dz ^ 2))
-            satGeoCoord.X -= refCoord.X;
-            satGeoCoord.Y -= refCoord.Y;
-            satGeoCoord.Z -= refCoord.Z;
+            double differenceX = satGeoCoord.X - refCoord.X;
+            double differenceY = satGeoCoord.Y - refCoord.Y;
+            double differenceZ = satGeoCoord.Z - refCoord.Z;
 
-            double elevation = (refCoord.X * satGeoCoord.X + refCoord.Y * satGeoCoord.Y + refCoord.Z * satGeoCoord.Z) /
+            double elevation = (refCoord.X * differenceX + refCoord.Y * differenceY + refCoord.Z * differenceZ) /
                 Math.Sqrt((refCoord.X * refCoord.X + refCoord.Y * refCoord.Y + refCoord.Z * refCoord.Z) *
-                (satGeoCoord.X * satGeoCoord.X + satGeoCoord.Y * satGeoCoord.Y + satGeoCoord.Z * satGeoCoord.Z));
+                (differenceX * differenceX + differenceY * differenceY + differenceZ * differenceZ));
 
             return 90 - Math.Acos(elevation) * Constants.RAD2DEG;
         }
 
+        public void CalculateRiseSetTimes(DateTime startTime, DateTime endTime, AppConfig appConfig, ECEFCoordinate refCoord,
+            double increments_s = 60, double elevationMaskAngle=5)
+        {
+            bool hasRose = false;
+            DateTime riseTime = startTime;
+
+            for (double i = 0; i <= (endTime - startTime).TotalSeconds; i += increments_s)
+            {
+
+                ECEFCoordinate coordinateAtTime = ComputeCoordinates(startTime.AddSeconds(i), appConfig);
+                bool isVisibleAtTime = CalculateVisibility(refCoord, coordinateAtTime, elevationMaskAngle);
+
+                if (isVisibleAtTime && !hasRose)
+                {
+                    hasRose = true;
+                    riseTime = startTime.AddSeconds(i);
+                }
+
+                else if (!isVisibleAtTime && hasRose)
+                {
+                    hasRose = false;
+                    this.RiseSetTimes.Add(new RiseSetTime(riseTime, startTime.AddSeconds(i)));
+                    riseTime = startTime.AddSeconds(i);
+                }
+            }
+        }
+
         public void PrintInformation(int id)
         {
+            GeodeticCoordinate geoCoord = this.EcefCoord.ECEFToGeodetic();
+
             Console.WriteLine($"PRN: {id}");
-            Console.WriteLine($"Latitude: {this.GeoCoord.Latitude}");
-            Console.WriteLine($"Longitude: {this.GeoCoord.Longitude}");
-            Console.WriteLine($"Altitude: {this.GeoCoord.Altitude}");
+            Console.WriteLine($"Latitude: {geoCoord.Latitude}");
+            Console.WriteLine($"Longitude: {geoCoord.Longitude}");
+            Console.WriteLine($"Altitude: {geoCoord.Altitude}");
             Console.WriteLine($"Elevation Angle: {this.ElevationAngle}");
-            Console.WriteLine($"In View: {this.IsVisible}");
             Console.WriteLine();
         }
 
