@@ -10,7 +10,7 @@ namespace SvTracker.Models
         public Constellation(DateTime referenceTime, string fileName) {
             this.RecentReferenceTime = referenceTime;
             this.AppConfig = new AppConfig();
-            PopulateSVsFromAlmanac(fileName);
+            this.AllSVs = PopulateSVsFromAlmanac(fileName);
         }
 
         public Constellation(GeodeticCoordinate refCoord, double elevationMaskAngle, DateTime referenceTime, string fileName)
@@ -31,7 +31,7 @@ namespace SvTracker.Models
             {
                 Conversions conversion = new Conversions();
                 svs = conversion.YumaFileToSVConstellation(fileName);
-                SetConstellationCoords(this.RecentReferenceTime);
+                SetConstellationCoords(svs, this.RecentReferenceTime);
             }
 
             //SEM
@@ -60,9 +60,9 @@ namespace SvTracker.Models
             }
         }
 
-        public void SetConstellationCoords(DateTime dateTime)
+        public void SetConstellationCoords(Dictionary<int, Satellite> svs, DateTime dateTime)
         {
-            foreach (var sat in AllSVs)
+            foreach (var sat in svs)
             {
                 sat.Value.EcefCoord = sat.Value.ComputeCoordinates(dateTime, this.AppConfig);
             }
