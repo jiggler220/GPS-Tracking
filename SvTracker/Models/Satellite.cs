@@ -119,18 +119,21 @@ namespace SvTracker.Models
             return E - ((E - e * (Math.Sin(E)) - Mk) / (1 - e * (Math.Cos(E))));
         }
 
+        // Given a receiver and sv coordinate in ECEF, calculate the look angle between the two and checks if it is larger than the mask angle
         public bool CalculateVisibility(ECEFCoordinate refCoord, ECEFCoordinate svCoord, double elevationMaskAngle=5)
         {
             double elevationAngle = CalculateAngleBetween2Points(refCoord, svCoord);
             return elevationAngle >= elevationMaskAngle;
         }
 
+        // Sets the initial Visiblity and Elevation Angle to a receiver
         public void SetVisibilityAndAngle(ECEFCoordinate refCoord, ECEFCoordinate svCoord, double elevationMaskAngle = 5)
         {
             this.ElevationAngle = CalculateAngleBetween2Points(refCoord, svCoord);
             this.IsVisible = this.ElevationAngle >= elevationMaskAngle;
         }
 
+        // Returns the look angle between two points refCoord TO satCoord
         private double CalculateAngleBetween2Points(ECEFCoordinate refCoord, ECEFCoordinate satGeoCoord)
         {
             //Cos(elevation) = (x * dx + y * dy + z * dz) / Sqrt((x ^ 2 + y ^ 2 + z ^ 2) * (dx ^ 2 + dy ^ 2 + dz ^ 2))
@@ -172,6 +175,7 @@ namespace SvTracker.Models
             }
         }
 
+        // Prints General SV Information
         public void PrintInformation(int id)
         {
             GeodeticCoordinate geoCoord = this.EcefCoord.ECEFToGeodetic();
