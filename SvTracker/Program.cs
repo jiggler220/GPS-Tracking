@@ -16,6 +16,7 @@ namespace SvTracker
             // Update Almanac program implementation
             // Can probably just do Geo coords for ComputeConstellationGeoCoordsOverGivenPeriod instead of ecef to geo
             // Add SEM parser
+            // Should probably add units to coordinates...
             // -------------------------------------------------------------------------------------------------------
 
 
