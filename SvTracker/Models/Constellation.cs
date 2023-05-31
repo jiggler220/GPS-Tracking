@@ -11,6 +11,7 @@ namespace SvTracker.Models
             this.RecentReferenceTime = referenceTime;
             this.AppConfig = new AppConfig();
             this.AllSVs = PopulateSVsFromAlmanac(fileName);
+            SetConstellationCoords(this.AllSVs, this.RecentReferenceTime);
         }
 
         public Constellation(GeodeticCoordinate refCoord, double elevationMaskAngle, DateTime referenceTime, string fileName)
@@ -24,28 +25,24 @@ namespace SvTracker.Models
         private Dictionary<int, Satellite> PopulateSVsFromAlmanac(string fileName)
         {
             FileInfo fileInfo = new FileInfo(fileName);
-            Dictionary<int, Satellite> svs = new Dictionary<int, Satellite>();
+            Conversions conversion = new Conversions();
 
             //YUMA
             if (fileInfo.Extension == ".alm")
             {
-                Conversions conversion = new Conversions();
-                svs = conversion.YumaFileToSVConstellation(fileName);
-                SetConstellationCoords(svs, this.RecentReferenceTime);
+                return conversion.YumaFileToSVConstellation(fileName);
             }
 
             //SEM
             else if (fileInfo.Extension == ".al3")
             {
-                // DO LATER
+                return conversion.SEMFileToSVConstellation(fileName);
             }
 
             else
             {
                 throw new Exception("Invalid File Format");
             }
-
-            return svs;
         }
 
         public void UpdateAlmanac(string fileName)

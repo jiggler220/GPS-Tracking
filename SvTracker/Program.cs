@@ -20,7 +20,7 @@ namespace SvTracker
             // -------------------------------------------------------------------------------------------------------
 
 
-            string filename = "C:\\Users\\metca\\source\\repos\\GPSTracking\\SvTracker\\sampleAlm.alm";
+            string filename = "C:\\Users\\metca\\source\\repos\\GPSTracking\\SvTracker\\Sample Data\\sampleSem.al3";
             int elevationMaskAngle = 5;
             var watch = new System.Diagnostics.Stopwatch();
             watch.Start();

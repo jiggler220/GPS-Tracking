@@ -24,8 +24,14 @@ namespace SvTracker
 
         public static readonly double DEG2RAD = Math.PI / 180;
 
+        public static readonly double RADIANTOSEMI = 0.3183098861837907;
+
         public static readonly DateTime GPS_ORIGIN = new DateTime(1980, 01, 06);
 
         public static readonly Regex YUMA_REGEX = new Regex(@"^\*{8} Week \d{1,4} almanac for [A-Z]{3}-\d{2} \*{8}$");
+
+        public static readonly Regex SEM_ENTRIES_REGEX = new Regex(@"^([1-9]|[1-2]\d|3[0-2])\s*CURRENT\.ALM$");
+        public static readonly Regex SEM_TIME_REGEX = new Regex(@"^\s*([0-9]{1,4})\s+([0-9]{1,6})$");
+
     }
 }
