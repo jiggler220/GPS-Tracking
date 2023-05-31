@@ -17,21 +17,24 @@ namespace SvTracker.Models
         {
             this.RecentReferenceTime = referenceTime;
             this.AppConfig = new AppConfig();
-            PopulateSVsFromAlmanac(fileName);
+            this.AllSVs = PopulateSVsFromAlmanac(fileName);
             SetConstellationVisibilities(refCoord.GeodeticToECEF(), elevationMaskAngle) ;
         }
 
-        private void PopulateSVsFromAlmanac(string fileName)
+        private Dictionary<int, Satellite> PopulateSVsFromAlmanac(string fileName)
         {
             FileInfo fileInfo = new FileInfo(fileName);
+            Dictionary<int, Satellite> svs = new Dictionary<int, Satellite>();
 
+            //YUMA
             if (fileInfo.Extension == ".alm")
             {
                 Conversions conversion = new Conversions();
-                AllSVs = conversion.YumaFileToSVConstellation(fileName);
+                svs = conversion.YumaFileToSVConstellation(fileName);
                 SetConstellationCoords(this.RecentReferenceTime);
             }
 
+            //SEM
             else if (fileInfo.Extension == ".al3")
             {
                 // DO LATER
@@ -42,6 +45,19 @@ namespace SvTracker.Models
                 throw new Exception("Invalid File Format");
             }
 
+            return svs;
+        }
+
+        public void UpdateAlmanac(string fileName)
+        {
+            Dictionary<int, Satellite> updatedSvs = PopulateSVsFromAlmanac(fileName);
+            foreach (var sat in updatedSvs)
+            {
+                if (AllSVs.ContainsKey(sat.Key))
+                {
+                    AllSVs[sat.Key] = sat.Value;
+                }
+            }
         }
 
         public void SetConstellationCoords(DateTime dateTime)
@@ -66,6 +82,44 @@ namespace SvTracker.Models
             {
                 sat.Value.ComputeCoordinates(dateTime, this.AppConfig);
             }
+        }
+
+        public Dictionary<int, Dictionary<DateTime, ECEFCoordinate>> ComputeConstellationECEFCoordsOverGivenPeriod(DateTime startDate, DateTime endDate)
+        {
+            Dictionary<int, Dictionary<DateTime, ECEFCoordinate>> ecefPeriodCoords = new Dictionary<int, Dictionary<DateTime, ECEFCoordinate>>();
+            foreach (var sat in AllSVs)
+            {
+                Dictionary<DateTime, ECEFCoordinate> ecefDict = new Dictionary<DateTime, ECEFCoordinate>();
+                DateTime tempStartDate = startDate;
+                while (tempStartDate <= endDate)
+                {
+                    ECEFCoordinate ecefCoord = sat.Value.ComputeCoordinates(startDate, this.AppConfig);
+                    ecefDict.Add(tempStartDate, ecefCoord);
+                    tempStartDate = tempStartDate.AddSeconds(1);
+                }
+                ecefPeriodCoords.Add(sat.Key, ecefDict);
+            }
+
+            return ecefPeriodCoords;
+        }
+
+        public Dictionary<int, Dictionary<DateTime, GeodeticCoordinate>> ComputeConstellationGeoCoordsOverGivenPeriod(DateTime startDate, DateTime endDate)
+        {
+            Dictionary<int, Dictionary<DateTime, GeodeticCoordinate>> geoPeriodCoords = new Dictionary<int, Dictionary<DateTime, GeodeticCoordinate>>();
+            foreach (var sat in AllSVs)
+            {
+                Dictionary<DateTime, GeodeticCoordinate> ecefDict = new Dictionary<DateTime, GeodeticCoordinate>();
+                DateTime tempStartDate = startDate;
+                while (tempStartDate <= endDate)
+                {
+                    GeodeticCoordinate geoCoord = sat.Value.ComputeCoordinates(startDate, this.AppConfig).ECEFToGeodetic();
+                    ecefDict.Add(tempStartDate, geoCoord);
+                    tempStartDate = tempStartDate.AddSeconds(1);
+                }
+                geoPeriodCoords.Add(sat.Key, ecefDict);
+            }
+
+            return geoPeriodCoords;
         }
 
         public void ComputeRiseSetTimes(DateTime startTime, DateTime endTime, GeodeticCoordinate refCoord, double increment_s=60, double elevationMaskAngle=5)
